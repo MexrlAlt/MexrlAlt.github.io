@@ -566,85 +566,47 @@
 </div>
 
 <script>
-  // UA display
-  (function() {
-    const el = document.getElementById('UA');
-    const sub = document.getElementById('UA-sub');
-    const ua = navigator.userAgent;
-    el.textContent = ua.length > 60 ? ua.slice(0, 60) + '…' : ua;
-    const m = ua.match(/OS ([\d_]+)/);
-    if (m) sub.textContent = 'iOS ' + m[1].replace(/_/g, '.');
-  })();
+  /* ── UI helpers exposed globally so script.js & main.js can call them ── */
 
-  // Footer timestamp
+  // Live clock in footer
   (function() {
     const el = document.getElementById('ftr-ts');
-    const pad = n => String(n).padStart(2,'0');
+    const pad = n => String(n).padStart(2, '0');
     function tick() {
       const d = new Date();
-      el.textContent = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      el.textContent = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate())
+                     + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
     }
     tick(); setInterval(tick, 1000);
   })();
 
-  // Console helper
-  const consoleEl = document.getElementById('console');
-  function appendLine(text, cls) {
-    const cursor = consoleEl.querySelector('.console-cursor');
+  // Console output
+  var consoleEl = document.getElementById('console');
+
+  window.appendLine = function(text, cls) {
+    var cursor = consoleEl.querySelector('.console-cursor');
     if (cursor) cursor.remove();
-    const line = document.createElement('span');
+    var line = document.createElement('span');
     if (cls) line.className = cls;
     line.textContent = text + '\n';
     consoleEl.appendChild(line);
-    const cur = document.createElement('span');
+    var cur = document.createElement('span');
     cur.className = 'console-cursor';
     consoleEl.appendChild(cur);
     consoleEl.scrollTop = consoleEl.scrollHeight;
-  }
+  };
 
-  function clearConsole() {
+  window.clearConsole = function() {
     consoleEl.innerHTML = '';
-    const cur = document.createElement('span');
+    var cur = document.createElement('span');
     cur.className = 'console-cursor';
     consoleEl.appendChild(cur);
-  }
+  };
 
-  // Status helper
-  function setStatus(state, label) {
-    const dot = document.getElementById('status-dot');
-    const txt = document.getElementById('status-text');
-    dot.className = 'status-dot ' + state;
-    txt.textContent = label.toUpperCase();
-  }
-
-  // Button state
-  const btn = document.getElementById('jeilbrek');
-  let isRunning = false;
-
-  btn.addEventListener('click', function() {
-    if (isRunning) return;
-    const kernel = document.querySelector('input[name="kernel"]:checked')?.value;
-    if (!kernel) return;
-
-    isRunning = true;
-    btn.classList.add('running');
-    btn.textContent = 'Running…';
-    setStatus('running', 'Running');
-    clearConsole();
-    appendLine('> kernel: ' + kernel, 'console-line-dim');
-    appendLine('> initiating exploit chain…', 'console-line-dim');
-  });
-
-  // Restore button after external script signals done
-  window._exploitDone = function(success) {
-    isRunning = false;
-    btn.classList.remove('running');
-    btn.textContent = 'Execute';
-    if (success) {
-      setStatus('success', 'Done');
-    } else {
-      setStatus('error', 'Failed');
-    }
+  // Status dot + label
+  window.setStatus = function(state, label) {
+    document.getElementById('status-dot').className = 'status-dot ' + state;
+    document.getElementById('status-text').textContent = label.toUpperCase();
   };
 </script>
 
