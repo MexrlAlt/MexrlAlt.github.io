@@ -622,6 +622,32 @@ const constants_map = {
       EVF_OFFSET: 0x7fc22f,
     },
   },
+  12: {
+    0: {
+      // ── 12.00, 12.02 ──────────────────────────────────────────────────────
+      KPATCH: "1200.bin",
+      SYSENT_661: 0x110A760,
+      JMP_RSI_GADGET: 0x47B31,
+      KL_LOCK: 0xE6C20,
+      EVF_OFFSET: 0x784798,
+
+      // WebKit gadgets for 12.00 — fill from binary analysis if 11.x fallback
+      // values cause crashes. Leave absent to fall through to 11.02 entries.
+    },
+    0x50: {
+      // ── 12.50, 12.52 ──────────────────────────────────────────────────────
+      // SYSENT_661 / JMP_RSI_GADGET / KL_LOCK same as 12.00 — falls through.
+      KPATCH: "1250.bin",
+      EVF_OFFSET: 0x0, // not needed for netctrl path; unknown for lapse
+    },
+  },
+  13: {
+    0: {
+      // ── 13.00, 13.02 ──────────────────────────────────────────────────────
+      // All kernel offsets same as 12.50 — falls through via proxy.
+      KPATCH: "1300.bin",
+    },
+  },
 };
 
 const constants = new Proxy(constants_map, {
