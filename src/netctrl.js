@@ -1,13 +1,13 @@
 //#region Variables
-const NUM_ATTEMPT = 8;
+const NUM_ATTEMPT = 16;
 const NUM_IOV_WORKER = 4;
 const NUM_UIO_WORKER = 4;
 const NUM_IPV6_SOCK = 0x100;
-const NUM_ATTEMPT_TWINS = 0x10;
-const NUM_ATTEMPT_TRIPLETS = 0x10;
-const NUM_IOV_SPRAY = 0x100;
-const NUM_UIO_SPRAY = 0x100;
-const NUM_LEAK_KQUEUE = 0x200;
+const NUM_ATTEMPT_TWINS = 0x20;
+const NUM_ATTEMPT_TRIPLETS = 0x20;
+const NUM_IOV_SPRAY = 0x180;
+const NUM_UIO_SPRAY = 0x180;
+const NUM_LEAK_KQUEUE = 0x400;
 //#endregion
 //#region Contants
 const NETCONTROL_NETEVENT_SET_QUEUE = 0x20000003;
