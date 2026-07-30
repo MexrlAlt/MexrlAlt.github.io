@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebKit Gadget Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050810;--surf:#090c18;--surf2:#0d1020;
+  --b:#181c2e;--b2:#252840;
+  --tx:#8ab4cc;--dim:#3c4a5c;--hi:#fff;
+  --acc:#00d0ff;--acc2:#0098c0;
+  --ok:#44ee88;--no:#ee4433;--scan:#ffaa22;--ref:#8888ff;--skip:#3c4a5c;
+  --c-ok:#1a3a24;--c-no:#3a1a18;--c-scan:#2e2210;--c-ref:#1a1a40;
+  --mono:'Share Tech Mono','Courier New',monospace;
+  --head:'Barlow Condensed',sans-serif;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-family:var(--mono);font-size:12px}
+
+/* ── TOPBAR ── */
+.topbar{height:38px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;border-bottom:1px solid var(--b);background:var(--surf);flex-shrink:0}
+.tb-id{display:flex;align-items:baseline;gap:10px}
+.tb-tag{font-size:9px;letter-spacing:.25em;color:var(--dim);text-transform:uppercase}
+.tb-title{font-family:var(--head);font-weight:900;font-size:17px;text-transform:uppercase;color:#fff;letter-spacing:.06em}
+.tb-title span{color:var(--acc)}
+.tb-right{display:flex;align-items:center;gap:8px}
+.chip{font-size:9px;letter-spacing:.18em;text-transform:uppercase;padding:2px 9px;
+  border:1px solid var(--b2);color:var(--dim);min-width:80px;text-align:center;transition:.15s}
+.chip.ok{border-color:var(--ok);color:var(--ok)}
+.chip.no{border-color:var(--no);color:var(--no)}
+.chip.run{border-color:var(--scan);color:var(--scan);animation:blink .7s step-end infinite}
+@keyframes blink{50%{opacity:.3}}
+.tb-btn{background:none;border:1px solid var(--b2);color:var(--dim);font-family:var(--mono);
+  font-size:10px;letter-spacing:.1em;padding:2px 9px;cursor:pointer;transition:.12s}
+.tb-btn:hover{border-color:var(--tx);color:var(--hi)}
+
+/* ── LAYOUT ── */
+.layout{display:grid;grid-template-columns:242px 1fr;height:calc(100vh - 38px);overflow:hidden}
+
+/* ── LEFT PANEL ── */
+.lp{border-right:1px solid var(--b);overflow-y:auto;display:flex;flex-direction:column;
+  scrollbar-width:thin;scrollbar-color:var(--b2) transparent}
+.lp::-webkit-scrollbar{width:3px}
+.lp::-webkit-scrollbar-thumb{background:var(--b2)}
+.sec{border-bottom:1px solid var(--b);padding:10px 11px;display:flex;flex-direction:column;gap:5px}
+.stitle{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin-bottom:3px}
+
+/* radio */
+.kr{display:flex;align-items:center;gap:7px;cursor:pointer;padding:4px 7px;
+  border:1px solid transparent;transition:.1s}
+.kr:hover{border-color:var(--b2);background:rgba(0,208,255,.04)}
+.kr input[type=radio]{appearance:none;-webkit-appearance:none;width:10px;height:10px;
+  border:1px solid var(--dim);flex-shrink:0;position:relative;cursor:pointer}
+.kr input[type=radio]:checked{border-color:var(--acc)}
+.kr input[type=radio]:checked::after{content:'';position:absolute;inset:2px;background:var(--acc)}
+.kr-lbl{font-size:11px}
+.kr input:checked ~ .kr-lbl{color:#fff}
+
+/* inputs */
+.di{width:100%;background:var(--surf2);border:1px solid var(--b2);
+  color:var(--tx);font-family:var(--mono);font-size:11px;padding:4px 7px}
+.di:focus{outline:none;border-color:var(--acc)}
+.ds{width:100%;background:var(--surf2);border:1px solid var(--b2);
+  color:var(--tx);font-family:var(--mono);font-size:11px;padding:4px 7px;
+  appearance:none;-webkit-appearance:none;cursor:pointer}
+.ds:focus{outline:none;border-color:var(--acc)}
+
+/* buttons */
+.btn-big{width:100%;background:var(--acc);color:#050810;border:none;
+  font-family:var(--head);font-weight:900;font-size:17px;letter-spacing:.12em;text-transform:uppercase;
+  padding:10px 0;cursor:pointer;clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,0 100%);
+  transition:.1s}
+.btn-big:hover{background:#00b8e0}
+.btn-big:disabled{background:var(--b);color:var(--dim);cursor:not-allowed;clip-path:none}
+.btn-stop{width:100%;background:none;border:1px solid var(--no);color:var(--no);
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;padding:7px 0;cursor:pointer;display:none}
+.btn-stop:hover{background:rgba(238,68,51,.12)}
+.btn-sm{background:none;border:1px solid var(--b2);color:var(--dim);
+  font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:4px 9px;cursor:pointer;width:100%;transition:.1s}
+.btn-sm:hover{border-color:var(--acc);color:var(--acc)}
+
+/* progress */
+.prog-wrap{background:var(--b);height:4px;position:relative;overflow:hidden}
+.prog-bar{height:100%;background:var(--acc);width:0%;transition:width .2s;position:relative}
+.prog-bar::after{content:'';position:absolute;top:0;right:0;width:20px;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.3));animation:shimmer 1s linear infinite}
+@keyframes shimmer{from{right:100%}to{right:-20px}}
+.prog-txt{font-size:9px;color:var(--dim);margin-top:3px;display:flex;justify-content:space-between}
+
+/* live values */
+.lv-row{display:flex;justify-content:space-between;align-items:baseline;gap:4px;padding:2px 0}
+.lv-key{color:var(--dim);font-size:10px;flex-shrink:0}
+.lv-val{color:var(--ref);font-size:10px;text-align:right;word-break:break-all}
+.lv-val.live{color:var(--ok)}
+
+/* ── RIGHT PANEL ── */
+.rp{display:flex;flex-direction:column;overflow:hidden}
+
+/* tabs */
+.tabs{display:flex;border-bottom:1px solid var(--b);background:var(--surf);flex-shrink:0}
+.tab{padding:7px 18px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:.12s;user-select:none}
+.tab.active{color:var(--acc);border-bottom-color:var(--acc)}
+.tab:hover:not(.active){color:var(--tx)}
+.tab-count{font-size:9px;color:var(--dim);margin-left:4px}
+
+/* tab panels */
+.tpanel{display:none;flex:1;overflow:hidden;flex-direction:column}
+.tpanel.active{display:flex}
+
+/* ── GADGET GRID ── */
+.gg-hdr{padding:7px 12px;border-bottom:1px solid var(--b);background:var(--surf);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;font-size:10px;color:var(--dim)}
+.gg-hdr-right{display:flex;gap:12px}
+.legend{display:flex;align-items:center;gap:4px}
+.legend-dot{width:7px;height:7px;border-radius:50%}
+.gg-wrap{flex:1;overflow-y:auto;padding:10px 12px;display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;align-content:start;
+  scrollbar-width:thin;scrollbar-color:var(--b2) transparent}
+.gg-wrap::-webkit-scrollbar{width:3px}
+.gg-wrap::-webkit-scrollbar-thumb{background:var(--b2)}
+
+/* gadget card */
+.gcard{border:1px solid var(--b);background:var(--surf2);padding:8px 9px;
+  display:flex;flex-direction:column;gap:4px;transition:border-color .12s,background .12s;
+  position:relative;overflow:hidden}
+.gcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.gcard.st-idle   .gcard-st{color:var(--dim)}
+.gcard.st-idle   {border-left:3px solid var(--b)}
+.gcard.st-scan   {border-left:3px solid var(--scan);background:var(--c-scan);animation:card-pulse .8s ease-in-out infinite alternate}
+.gcard.st-found  {border-left:3px solid var(--ok);background:var(--c-ok)}
+.gcard.st-match  {border-left:3px solid var(--ok);background:var(--c-ok)}
+.gcard.st-miss   {border-left:3px solid var(--no);background:var(--c-no)}
+.gcard.st-manual {border-left:3px solid var(--ref);background:var(--c-ref)}
+.gcard.st-skip   {border-left:3px solid var(--dim);opacity:.55}
+@keyframes card-pulse{from{background:var(--c-scan)}to{background:var(--surf2)}}
+.gcard-name{font-size:10px;color:var(--hi);word-break:break-all;letter-spacing:.03em}
+.gcard-row{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.gcard-st{font-size:9px;letter-spacing:.12em;text-transform:uppercase}
+.gcard.st-idle  .gcard-st{color:var(--dim)}
+.gcard.st-scan  .gcard-st{color:var(--scan)}
+.gcard.st-found .gcard-st,.gcard.st-match .gcard-st{color:var(--ok)}
+.gcard.st-miss  .gcard-st{color:var(--no)}
+.gcard.st-manual .gcard-st{color:var(--ref)}
+.gcard.st-skip  .gcard-st{color:var(--dim)}
+.gcard-addr{font-size:11px;color:var(--acc);font-weight:700;letter-spacing:.04em}
+.gcard-delta{font-size:9px;color:var(--dim)}
+.gcard-ref{font-size:9px;color:var(--dim)}
+.gcard-bytes{font-size:9px;color:var(--dim);letter-spacing:.08em;margin-top:1px}
+.gcard-cat{position:absolute;top:5px;right:6px;font-size:8px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+
+/* ── HEX BROWSER ── */
+.hx-ctrl{padding:10px 12px;border-bottom:1px solid var(--b);background:var(--surf);
+  display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.hx-ctrl label{font-size:10px;color:var(--dim)}
+.hx-ctrl .di{width:140px}
+.hx-dump{flex:1;overflow-y:auto;padding:10px 12px;font-size:12px;line-height:1.7;
+  scrollbar-width:thin;scrollbar-color:var(--b2) transparent;background:var(--bg)}
+.hx-dump::-webkit-scrollbar{width:3px}
+.hx-row{display:flex;gap:12px;align-items:baseline}
+.hx-off{color:var(--dim);min-width:70px;flex-shrink:0;font-size:10px}
+.hx-bytes{color:var(--acc);flex:1;letter-spacing:.12em;word-break:break-all}
+.hx-ascii{color:var(--dim);min-width:80px;letter-spacing:.04em}
+.hx-match{color:var(--ok);background:rgba(68,238,136,.12);padding:0 2px}
+.hx-empty{color:var(--dim);padding:20px 0;text-align:center}
+.hx-err{color:var(--no)}
+
+/* ── LOG PANEL ── */
+.log-area{flex:1;overflow-y:auto;background:var(--bg);padding:0;
+  scrollbar-width:thin;scrollbar-color:var(--b2) transparent}
+.log-area::-webkit-scrollbar{width:3px}
+.log-area::-webkit-scrollbar-thumb{background:var(--b2)}
+.ll{display:flex;align-items:baseline;padding:1px 10px;border-bottom:1px solid rgba(255,255,255,.015);font-size:11px;line-height:1.55}
+.ll:hover{background:rgba(255,255,255,.02)}
+.ll-ts{color:var(--dim);min-width:86px;flex-shrink:0;font-size:9px;padding-right:6px}
+.ll-lv{min-width:36px;flex-shrink:0;font-size:9px;letter-spacing:.08em}
+.ll-msg{white-space:pre-wrap;word-break:break-all;flex:1}
+.ll.dbg .ll-lv,.ll.dbg .ll-msg{color:#3a5e3a}
+.ll.inf .ll-lv{color:var(--acc)}.ll.inf .ll-msg{color:var(--tx)}
+.ll.ok  .ll-lv,.ll.ok  .ll-msg{color:var(--ok)}
+.ll.wrn .ll-lv,.ll.wrn .ll-msg{color:var(--scan)}
+.ll.err .ll-lv,.ll.err .ll-msg{color:var(--no)}
+.ll.sys .ll-lv,.ll.sys .ll-msg{color:var(--ref)}
+
+/* ── EXPORT ── */
+.ex-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.ex-hdr{padding:8px 12px;border-bottom:1px solid var(--b);background:var(--surf);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;font-size:10px;color:var(--dim)}
+.ex-out{flex:1;overflow:auto;background:var(--bg);padding:12px;
+  color:var(--tx);font-size:12px;line-height:1.65;white-space:pre;
+  scrollbar-width:thin;scrollbar-color:var(--b2) transparent}
+.ex-ok{color:var(--ok)}.ex-no{color:var(--no)}.ex-ref{color:var(--ref)}.ex-dim{color:var(--dim)}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tb-id">
+    <span class="tb-tag">PS4 12.50 · 12.52 · 13.00</span>
+    <span class="tb-title">WEBKIT <span>GADGET</span> FINDER</span>
+  </div>
+  <div class="tb-right">
+    <span class="chip" id="main-chip">IDLE</span>
+    <button class="tb-btn" onclick="copyLog()">Copy Log</button>
+    <button class="tb-btn" onclick="buildExport(); switchTab('export')">Export</button>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- LEFT: CONTROLS -->
+  <div class="lp">
+
+    <!-- ARW Phase -->
+    <div class="sec">
+      <div class="stitle">Phase 1 — ARW</div>
+      <label class="kr" for="k-nc"><input type="radio" name="kern" id="k-nc" value="netctrl" checked><span class="kr-lbl">netctrl</span></label>
+      <label class="kr" for="k-lp"><input type="radio" name="kern" id="k-lp" value="lapse"><span class="kr-lbl">lapse</span></label>
+      <button class="btn-big" id="btn-arw" onclick="initARW()">▶ INIT ARW</button>
+    </div>
+
+    <!-- Live values -->
+    <div class="sec">
+      <div class="stitle">Live Addresses</div>
+      <div class="lv-row"><span class="lv-key">firmware</span><span class="lv-val" id="lv-fw">—</span></div>
+      <div class="lv-row"><span class="lv-key">webkit_base</span><span class="lv-val" id="lv-wb">—</span></div>
+      <div class="lv-row"><span class="lv-key">kernel_base</span><span class="lv-val" id="lv-kb">—</span></div>
+    </div>
+
+    <!-- Scanner config -->
+    <div class="sec">
+      <div class="stitle">Phase 2 — Scan</div>
+      <label style="font-size:10px;color:var(--dim)">Mode</label>
+      <select class="ds" id="scan-mode">
+        <option value="verify">Verify — check 11.x offsets only</option>
+        <option value="smart"  selected>Smart — ±window around 11.x ref</option>
+        <option value="full">Full — scan entire range</option>
+      </select>
+      <label style="font-size:10px;color:var(--dim)">Window / radius (hex)</label>
+      <input class="di" id="scan-radius" value="200000" placeholder="e.g. 200000">
+      <label style="font-size:10px;color:var(--dim)">Full scan start (hex offset)</label>
+      <input class="di" id="scan-start" value="0" placeholder="0">
+      <label style="font-size:10px;color:var(--dim)">Full scan length (hex)</label>
+      <input class="di" id="scan-len" value="400000" placeholder="400000">
+      <label style="font-size:10px;color:var(--dim)">Chunk (bytes, yield interval)</label>
+      <input class="di" id="scan-chunk" value="512" placeholder="512">
+    </div>
+
+    <!-- Run scan -->
+    <div class="sec">
+      <button class="btn-big" id="btn-scan" onclick="startScan()" disabled>▶ SCAN</button>
+      <button class="btn-stop" id="btn-stop" onclick="stopScan()">■ STOP</button>
+      <div class="prog-wrap" id="prog-wrap" style="margin-top:4px;display:none">
+        <div class="prog-bar" id="prog-bar"></div>
+      </div>
+      <div class="prog-txt" id="prog-txt" style="display:none">
+        <span id="prog-pct">0%</span><span id="prog-info">—</span>
+      </div>
+    </div>
+
+    <!-- Scan stats -->
+    <div class="sec">
+      <div class="stitle">Results</div>
+      <div class="lv-row"><span class="lv-key">Scannable</span><span class="lv-val" id="st-scan">—</span></div>
+      <div class="lv-row"><span class="lv-key">Found</span><span class="lv-val live" id="st-found">—</span></div>
+      <div class="lv-row"><span class="lv-key">Matched 11.x</span><span class="lv-val live" id="st-match">—</span></div>
+      <div class="lv-row"><span class="lv-key">Not found</span><span class="lv-val" style="color:var(--no)" id="st-miss">—</span></div>
+      <div class="lv-row"><span class="lv-key">Manual</span><span class="lv-val" id="st-manual">—</span></div>
+    </div>
+
+    <!-- Hex browser quick -->
+    <div class="sec">
+      <div class="stitle">Quick Read</div>
+      <label style="font-size:10px;color:var(--dim)">Offset from webkit_base</label>
+      <input class="di" id="br-off" value="31f9d" placeholder="hex offset">
+      <label style="font-size:10px;color:var(--dim)">Bytes to read</label>
+      <input class="di" id="br-len" value="32" placeholder="32">
+      <button class="btn-sm" onclick="quickRead(); switchTab('browser')">Read → Browser</button>
+    </div>
+
+    <!-- Reset -->
+    <div class="sec">
+      <button class="btn-sm" onclick="resetAll()">Reset all results</button>
+    </div>
+
+  </div><!-- /lp -->
+
+  <!-- RIGHT: TABS -->
+  <div class="rp">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('gadgets')" id="t-gadgets">Gadgets <span class="tab-count" id="tc-gadgets"></span></div>
+      <div class="tab" onclick="switchTab('browser')"  id="t-browser">Hex Browser</div>
+      <div class="tab" onclick="switchTab('log')"      id="t-log">Log <span class="tab-count" id="tc-log"></span></div>
+      <div class="tab" onclick="switchTab('export')"   id="t-export">Export</div>
+    </div>
+
+    <!-- GADGETS TAB -->
+    <div class="tpanel active" id="tp-gadgets">
+      <div class="gg-hdr">
+        <span id="gg-summary">Waiting for ARW initialization...</span>
+        <div class="gg-hdr-right">
+          <span class="legend"><span class="legend-dot" style="background:var(--ok)"></span>found</span>
+          <span class="legend"><span class="legend-dot" style="background:var(--scan)"></span>scanning</span>
+          <span class="legend"><span class="legend-dot" style="background:var(--no)"></span>not found</span>
+          <span class="legend"><span class="legend-dot" style="background:var(--ref)"></span>manual</span>
+        </div>
+      </div>
+      <div class="gg-wrap" id="gg-wrap"></div>
+    </div>
+
+    <!-- BROWSER TAB -->
+    <div class="tpanel" id="tp-browser">
+      <div class="hx-ctrl">
+        <label>Base</label>
+        <select class="ds" id="br-base" style="width:130px">
+          <option value="webkit">webkit_base</option>
+          <option value="abs">absolute addr</option>
+        </select>
+        <label>Offset</label>
+        <input class="di" id="br-off2" value="31f9d" placeholder="hex">
+        <label>Length</label>
+        <input class="di" id="br-len2" value="64" style="width:60px" placeholder="64">
+        <button class="btn-sm" onclick="doBrowserRead()" style="width:auto;padding:4px 14px">Read</button>
+        <label>Highlight</label>
+        <input class="di" id="br-hl" value="" placeholder="hex bytes e.g. C9 C3" style="width:140px">
+      </div>
+      <div class="hx-dump" id="hx-dump"><div class="hx-empty">— enter offset and click Read —</div></div>
+    </div>
+
+    <!-- LOG TAB -->
+    <div class="tpanel" id="tp-log">
+      <div style="padding:5px 10px;border-bottom:1px solid var(--b);background:var(--surf);
+           display:flex;align-items:center;justify-content:space-between;flex-shrink:0;font-size:10px;color:var(--dim)">
+        <span id="log-count">0 lines</span>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" id="auto-scroll" checked style="accent-color:var(--acc)"> auto-scroll
+        </label>
+      </div>
+      <div class="log-area" id="log-area"></div>
+    </div>
+
+    <!-- EXPORT TAB -->
+    <div class="tpanel" id="tp-export">
+      <div class="ex-wrap">
+        <div class="ex-hdr">
+          <span id="ex-summary">Run a scan first to populate export</span>
+          <button class="btn-sm" onclick="copyExport()" style="width:auto;padding:3px 12px">Copy</button>
+        </div>
+        <div class="ex-out" id="ex-out">// Run scan then click Export in the top bar</div>
+      </div>
+    </div>
+
+  </div><!-- /rp -->
+</div><!-- /layout -->
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════════════════════
+// GADGET DEFINITIONS
+// [name, patternBytes|null, ref_11x_offset, category, description]
+// ref_11x_offset = 11.02 value (merged from 11.00 + 11.02 overrides)
+// ══════════════════════════════════════════════════════════════════
+const GD = [
+  // ── Simple ROP gadgets ──────────────────────────────────────────
+  ['wk_LEAVE_RET',    [0xC9,0xC3],                                 0x31f9d,    'rop', 'leave; ret'],
+  ['wk_POP_RAX_RET',  [0x58,0xC3],                                 0x116d4,    'rop', 'pop rax; ret'],
+  ['wk_POP_RBX_RET',  [0x5B,0xC3],                                 0xe16a,     'rop', 'pop rbx; ret'],
+  ['wk_POP_RCX_RET',  [0x59,0xC3],                                 0x71617,    'rop', 'pop rcx; ret'],
+  ['wk_POP_RDX_RET',  [0x5A,0xC3],                                 0x10d11,    'rop', 'pop rdx; ret'],
+  ['wk_POP_RSI_RET',  [0x5E,0xC3],                                 0x249e2,    'rop', 'pop rsi; ret'],
+  ['wk_POP_RDI_RET',  [0x5F,0xC3],                                 0x272776,   'rop', 'pop rdi; ret'],
+  ['wk_POP_RSP_RET',  [0x5C,0xC3],                                 0x927d1,    'rop', 'pop rsp; ret'],
+  ['wk_POP_RBP_RET',  [0x5D,0xC3],                                 null,       'rop', 'pop rbp; ret'],
+  ['wk_POP_R8_RET',   [0x41,0x58,0xC3],                           0xe53a2,    'rop', 'pop r8; ret'],
+  ['wk_POP_R9_RET',   [0x41,0x59,0xC3],                           0x6403b1,   'rop', 'pop r9; ret'],
+  ['wk_POP_R10_RET',  [0x41,0x5A,0xC3],                           null,       'rop', 'pop r10; ret'],
+  ['wk_POP_R11_RET',  [0x41,0x5B,0xC3],                           null,       'rop', 'pop r11; ret'],
+  ['wk_POP_R12_RET',  [0x41,0x5C,0xC3],                           0x90d813,   'rop', 'pop r12; ret'],
+  ['wk_POP_R13_RET',  [0x41,0x5D,0xC3],                           0xab6981,   'rop', 'pop r13; ret'],
+  ['wk_POP_R14_RET',  [0x41,0x5E,0xC3],                           0x249e1,    'rop', 'pop r14; ret'],
+  ['wk_POP_R15_RET',  [0x41,0x5F,0xC3],                           0x272775,   'rop', 'pop r15; ret'],
+  // ── Multi-instruction gadgets ───────────────────────────────────
+  ['wk_PUSH_RAX_POP_RBP_RET',     [0x50,0x5D,0xC3],              0x11b5e,    'mov', 'push rax; pop rbp; ret'],
+  ['wk_PUSH_RDX_POP_RSP_RET',     [0x52,0x5C,0xC3],              0x1cc607a,  'mov', 'push rdx; pop rsp; ret'],
+  ['wk_MOV_QWORD_PTR_RDI_RAX_RET',[0x48,0x89,0x07,0xC3],         0x97db,     'mov', 'mov [rdi],rax; ret'],
+  ['wk_MOV_RAX_QWORD_PTR_RDI_RET',[0x48,0x8B,0x07,0xC3],         0x2e5d4b,   'mov', 'mov rax,[rdi]; ret'],
+  ['wk_PUSH_RBX_JMP_QWORD_PTR_RAX',[0x53,0xFF,0x20],             0x2a68f26,  'jmp', 'push rbx; jmp [rax]'],
+  ['wk_PUSH_RBP_JMP_QWORD_PTR_RAX',[0x55,0xFF,0x20],             0x29c09aa,  'jmp', 'push rbp; jmp [rax]'],
+  ['wk_PUSH_RAX_JMP_QWORD_PTR_RBX',[0x50,0xFF,0x23],             0x29da361,  'jmp', 'push rax; jmp [rbx]'],
+  ['wk_MOV_RAX_QWORD_PTR_RDI_CALL',[0x48,0x8B,0x07,0xFF,0x10],   0xe70c5,    'call','mov rax,[rdi]; call [rax]'],
+  ['wk_MOV_RDI_RSI_30_MOV_RAX_QWORD_PTR_RDI_CALL_QWORD_PTR_RAX',
+                                   [0x48,0x8B,0x7E,0x30,0x48,0x8B,0x07,0xFF,0x10], 0x24dae68,'call','mov rdi,[rsi+30h]; mov rax,[rdi]; call [rax]'],
+  ['wk_POP_RAX_MOV_RAX_QWORD_PTR_RDI_JMP_QWORD_PTR_RAX_18',
+                                   [0x58,0x48,0x8B,0x07,0xFF,0x60,0x18],   0x11d5d53,'jmp', 'pop rax; mov rax,[rdi]; jmp [rax+18h]'],
+  ['wk_PUSH_RBP_MOV_RBP_RSP_MOV_RAX_QWORD_PTR_RDI_CALL_QWORD_PTR_RAX_10',
+                                   [0x55,0x48,0x89,0xE5,0x48,0x8B,0x07,0xFF,0x50,0x10], 0x2f1890,'call','push rbp; mov rbp,rsp; mov rax,[rdi]; call [rax+10h]'],
+  ['wk_MOV_RDI_QWORD_PTR_RAX_8_MOV_RAX_QWORD_PTR_RDI_CALL_QWORD_PTR_RAX_20',
+                                   [0x48,0x8B,0x78,0x08,0x48,0x8B,0x07,0xFF,0x50,0x20], 0x41a81,'call','mov rdi,[rax+8]; mov rax,[rdi]; call [rax+20h]'],
+  ['wk_MOV_RDX_QWORD_PTR_RAX_18_MOV_RAX_QWORD_PTR_RDI_CALL_QWORD_PTR_RAX_10',
+                                   [0x48,0x8B,0x50,0x18,0x48,0x8B,0x07,0xFF,0x50,0x10], 0x90fff6,'call','mov rdx,[rax+18h]; mov rax,[rdi]; call [rax+10h]'],
+  ['wk_MOV_RAX_QWORD_PTR_RDI_8_MOV_RCX_QWORD_PTR_RDI_10_MOV_QWORD_PTR_RCX_2060_RAX_RET',
+                                   [0x48,0x8B,0x47,0x08,0x48,0x8B,0x4F,0x10,0x48,0x89,0x81,0x60,0x20,0x00,0x00,0xC3], 0x1ff1aa0,'mov','complex mov chain'],
+  // ── Manual / complex ─────────────────────────────────────────────
+  ['wk_expm1_builtin',  null, 0x2193f40, 'jsc',    'JSC expm1 builtin — manual'],
+  ['wk___imp___error',  null, 0x36e1c68, 'import', 'GOT entry: __error — manual'],
+  ['wk___imp_strerror', null, 0x36e1c98, 'import', 'GOT entry: strerror — manual'],
+  ['wk_pthread_create', null, 0x2068,    'plt',    'PLT stub — manual'],
+  ['k__error',          null, 0x3370,    'libc',   'libkernel __error — manual'],
+  ['wk_CSSFontFace_vtable', null, 0x3627aa8, 'vtable','vtable ptr — manual'],
+];
+
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
+let arwReady  = false;
+let scanning  = false;
+let stopFlag  = false;
+let logLines  = 0;
+let cardMap   = {};   // name → { el, statusEl, addrEl, deltaEl, bytesEl }
+let results   = {};   // name → { offset, status:'found'|'miss'|'match'|'skip'|'manual' }
+
+// ══════════════════════════════════════════════════════════════════
+// LOGGER
+// ══════════════════════════════════════════════════════════════════
+const logEl = document.getElementById('log-area');
+
+function ts() {
+  const d = new Date();
+  const p = n => String(n).padStart(2,'0');
+  return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())+'.'+String(d.getMilliseconds()).padStart(3,'0');
+}
+
+function emit(lv, msg) {
+  msg = String(msg);
+  const el = document.createElement('div');
+  el.className = 'll ' + lv;
+  const lvl = {dbg:'DBG',inf:'INF',ok:'OK ',wrn:'WRN',err:'ERR',sys:'SYS'}[lv] || lv.toUpperCase();
+  el.innerHTML =
+    '<span class="ll-ts">'+ts()+'</span>' +
+    '<span class="ll-lv">'+lvl+'</span>' +
+    '<span class="ll-msg">'+escH(msg)+'</span>';
+  logEl.appendChild(el);
+  logLines++;
+  document.getElementById('log-count').textContent = logLines + ' lines';
+  document.getElementById('tc-log').textContent = logLines;
+  if (document.getElementById('auto-scroll').checked) el.scrollIntoView({block:'end'});
+}
+
+function escH(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Intercept exploit logger
+window.logger = {
+  verbose: true,
+  info (m){ emit('inf', m); },
+  error(m){ emit('err', m); },
+  debug(m){ emit('dbg', m); },
+  log  (m){
+    if (m.startsWith('[+]')) emit('inf', m.slice(4));
+    else if (m.startsWith('[-]')) emit('err', m.slice(4));
+    else if (m.startsWith('[*]')) emit('dbg', m.slice(4));
+    else emit('inf', m);
+  }
+};
+window.appendLine = (t, c) => {
+  const m = {'console-line-dim':'dbg','console-line-err':'err','console-line-warn':'wrn','console-line-ok':'ok'}[c]||'inf';
+  emit(m, t.trim());
+};
+window.setStatus = () => {};
+window.exploitFinished = () => {};
+
+function copyLog() {
+  const t = Array.from(logEl.querySelectorAll('.ll')).map(el => {
+    const ts  = el.querySelector('.ll-ts')?.textContent ?? '';
+    const lv  = el.querySelector('.ll-lv')?.textContent ?? '';
+    const msg = el.querySelector('.ll-msg')?.textContent ?? '';
+    return ts + '  ' + lv + '  ' + msg;
+  }).join('\n');
+  navigator.clipboard?.writeText(t).catch(() => {
+    const ta = Object.assign(document.createElement('textarea'), {value:t,style:'position:fixed;opacity:0'});
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  });
+  emit('sys', 'Log copied');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════════════════
+function switchTab(id) {
+  document.querySelectorAll('.tab,.tpanel').forEach(el => el.classList.remove('active'));
+  document.getElementById('t-'+id).classList.add('active');
+  document.getElementById('tp-'+id).classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// GADGET CARD SETUP
+// ══════════════════════════════════════════════════════════════════
+function buildCards() {
+  const wrap = document.getElementById('gg-wrap');
+  wrap.innerHTML = '';
+  cardMap = {};
+
+  for (const [name, pat, ref, cat, desc] of GD) {
+    const manual   = (pat === null);
+    const scannable = !manual;
+
+    const card = document.createElement('div');
+    const stClass = manual ? 'st-manual' : 'st-idle';
+    card.className = 'gcard ' + stClass;
+    card.id = 'gc-' + name;
+
+    const shortName = name.replace(/^wk_/, '').replace(/^k_/, 'k:');
+    const refHex = ref !== null ? '0x' + ref.toString(16) : '—';
+
+    card.innerHTML =
+      '<span class="gcard-cat">'+escH(cat)+'</span>' +
+      '<div class="gcard-name">'+escH(shortName)+'</div>' +
+      '<div class="gcard-row">' +
+        '<span class="gcard-st" id="gs-'+name+'">'+(manual?'MANUAL':'IDLE')+'</span>' +
+        '<span class="gcard-addr" id="ga-'+name+'">—</span>' +
+      '</div>' +
+      '<div class="gcard-row">' +
+        '<span class="gcard-ref" id="gr-'+name+'">11.x ref: '+refHex+'</span>' +
+        '<span class="gcard-delta" id="gd-'+name+'"></span>' +
+      '</div>' +
+      '<div class="gcard-bytes" id="gb-'+name+'">' +
+        (pat ? pat.map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ') : 'complex — hex browser') +
+      '</div>';
+
+    wrap.appendChild(card);
+    cardMap[name] = {
+      card,
+      st:   document.getElementById('gs-'+name),
+      addr: document.getElementById('ga-'+name),
+      ref:  document.getElementById('gr-'+name),
+      delta:document.getElementById('gd-'+name),
+      bytes:document.getElementById('gb-'+name),
+    };
+  }
+
+  const scannable = GD.filter(g => g[1] !== null).length;
+  const manual    = GD.filter(g => g[1] === null).length;
+  document.getElementById('st-scan').textContent   = scannable;
+  document.getElementById('st-manual').textContent = manual;
+  document.getElementById('tc-gadgets').textContent = GD.length;
+  document.getElementById('gg-summary').textContent =
+    GD.length + ' gadgets  |  ' + scannable + ' scannable  |  ' + manual + ' manual';
+}
+
+function setCard(name, status, offset, actualBytes) {
+  const c = cardMap[name];
+  if (!c) return;
+
+  const g   = GD.find(x => x[0] === name);
+  const ref = g?.[2] ?? null;
+
+  c.card.className = 'gcard st-' + status;
+  const stMap = {found:'FOUND',match:'MATCH',miss:'NOT FOUND',scan:'SCANNING...',idle:'IDLE',manual:'MANUAL',skip:'SKIP'};
+  c.st.textContent = stMap[status] || status.toUpperCase();
+
+  if (offset !== undefined && offset !== null) {
+    c.addr.textContent = '0x' + offset.toString(16);
+
+    if (ref !== null) {
+      const delta = offset - ref;
+      const sign  = delta >= 0 ? '+' : '';
+      c.delta.textContent = 'Δ' + sign + '0x' + Math.abs(delta).toString(16);
+      c.delta.style.color = delta === 0 ? 'var(--ok)' : 'var(--scan)';
+    }
+  } else {
+    c.addr.textContent = '—';
+  }
+
+  if (actualBytes && actualBytes.length) {
+    c.bytes.textContent = actualBytes.map(b => b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
+  }
+
+  results[name] = { offset: offset ?? null, status };
+  updateStats();
+}
+
+function updateStats() {
+  const all = Object.values(results);
+  document.getElementById('st-found').textContent  = all.filter(r => r.status==='found'||r.status==='match').length;
+  document.getElementById('st-match').textContent  = all.filter(r => r.status==='match').length;
+  document.getElementById('st-miss').textContent   = all.filter(r => r.status==='miss').length;
+  document.getElementById('st-manual').textContent = all.filter(r => r.status==='manual').length;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SCRIPT LOADER
+// ══════════════════════════════════════════════════════════════════
+const _loaded = new Set();
+function loadScript(src) {
+  if (_loaded.has(src)) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const el = document.createElement('script');
+    el.src = src; el.onload = () => { _loaded.add(src); res(); };
+    el.onerror = () => rej(new Error('Load failed: ' + src));
+    document.head.appendChild(el);
+  });
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ══════════════════════════════════════════════════════════════════
+// ARW INIT
+// ══════════════════════════════════════════════════════════════════
+async function initARW() {
+  const btn = document.getElementById('btn-arw');
+  btn.disabled = true;
+  setChip('run', 'INIT...');
+  emit('sys', '── ARW init ──');
+
+  try {
+    await loadScript('src/misc.js');
+    version.init();
+    emit('inf', 'FW: ' + version + '  console: PS' + version.console);
+
+    if (version.console !== 4) throw new Error('Only PS4 supported (console=' + version.console + ')');
+
+    await loadScript('src/ps4/constants.js');
+    await loadScript('src/ps4/userland.js');
+
+    const rw = arw.master === undefined ? await init_rw() : undefined;
+    init_arw(rw); init_rop(); init_syscalls();
+
+    await loadScript('src/loader.js');
+    await loadScript('src/workers.js');
+    await loadScript('src/ps4/kernel.js');
+
+    const chain = document.querySelector('input[name="kern"]:checked').value;
+    emit('inf', 'Chain: ' + chain);
+    await loadScript('src/' + chain + '.js');
+
+    window.exploitChain = chain;
+
+    try {
+      if (chain === 'lapse') {
+        init(); await setup(); await double_free_reqs2();
+        leak_kaddrs(); double_free_reqs1(); make_karw(); inc_karw_pipe_refcnt();
+        remove_pktinfo_from_so(pktopts_twins[0]);
+        remove_rthdr_from_so(pktopts_twins[1]);
+        remove_rthdr_from_so(rthdr_twins[0]);
+      } else {
+        init(); await setup(); await ucred_triple_free();
+        leak_kqueue(); await make_karw(); inc_karw_pipe_refcnt();
+        for (const t of triplets) remove_rthdr_from_so(t);
+        remove_uaf_file();
+      }
+    } finally { cleanup(); }
+
+    find_all_proc();
+
+    arwReady = true;
+    document.getElementById('btn-scan').disabled = false;
+    setChip('ok', 'ARW READY');
+    emit('ok', 'ARW established — webkit_base=' + webkit_base + '  kernel_base=' + kernel_base);
+
+  } catch(e) {
+    btn.disabled = false;
+    setChip('no', 'FAILED');
+    emit('err', e.message);
+    if (e.stack) e.stack.split('\n').slice(1,5).forEach(l => emit('dbg', l.trim()));
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MEMORY READ HELPERS
+// ══════════════════════════════════════════════════════════════════
+function readByte(offset) {
+  // offset = number, relative to webkit_base
+  return arw.view(webkit_base.add(offset)).getUint8(0);
+}
+
+function readChunk(offset, len) {
+  const buf = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    try { buf[i] = readByte(offset + i); }
+    catch { buf[i] = 0xCC; }    // 0xCC = unreadable / INT3
+  }
+  return buf;
+}
+
+function matchPattern(chunk, pat, chunkOffset) {
+  // Returns first absolute offset within chunk, or -1
+  for (let i = 0; i <= chunk.length - pat.length; i++) {
+    if (pat.every((b, j) => chunk[i + j] === b)) return chunkOffset + i;
+  }
+  return -1;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SCANNER
+// ══════════════════════════════════════════════════════════════════
+async function startScan() {
+  if (!arwReady) { emit('err', 'ARW not ready'); return; }
+  if (scanning)  return;
+
+  scanning = true; stopFlag = false;
+  document.getElementById('btn-scan').style.display = 'none';
+  document.getElementById('btn-stop').style.display = '';
+  document.getElementById('prog-wrap').style.display = '';
+  document.getElementById('prog-txt').style.display  = 'flex';
+  setChip('run', 'SCANNING');
+  emit('sys', '── Gadget scan start ──');
+
+  const mode     = document.getElementById('scan-mode').value;
+  const radius   = parseInt(document.getElementById('scan-radius').value, 16) || 0x200000;
+  const fullStart= parseInt(document.getElementById('scan-start').value,  16) || 0;
+  const fullLen  = parseInt(document.getElementById('scan-len').value,    16) || 0x400000;
+  const chunk    = parseInt(document.getElementById('scan-chunk').value,  10) || 512;
+
+  emit('inf', 'Mode: ' + mode + '  radius: 0x' + radius.toString(16));
+
+  // Mark all scannable gadgets as scanning, manual as manual
+  const scannable = GD.filter(g => g[1] !== null);
+  const manualGs  = GD.filter(g => g[1] === null);
+
+  for (const [name] of manualGs) setCard(name, 'manual', null);
+  for (const [name] of scannable) {
+    setCard(name, 'scan', null);
+    results[name] = { offset: null, status: 'scan' };
+  }
+
+  const remaining = new Set(scannable.map(g => g[0]));
+
+  if (mode === 'verify') {
+    // Quick mode: just check each gadget's known 11.x offset
+    await verifyMode(scannable, chunk);
+  } else if (mode === 'smart') {
+    // For each gadget, scan ±radius around its ref offset
+    await smartMode(scannable, radius, chunk, remaining);
+  } else {
+    // Full range scan
+    await fullMode(scannable, fullStart, fullLen, chunk, remaining);
+  }
+
+  // Mark anything still 'scan' as miss
+  for (const [name] of scannable) {
+    if (!results[name] || results[name].status === 'scan') {
+      setCard(name, 'miss', null);
+      emit('wrn', name + ' — not found');
+    }
+  }
+
+  scanning = false;
+  document.getElementById('btn-scan').style.display = '';
+  document.getElementById('btn-stop').style.display = 'none';
+  setChip('ok', 'DONE');
+  emit('ok', '── Scan complete ──');
+  updateSummary();
+  buildExport();
+  switchTab('gadgets');
+}
+
+// ─── Verify mode: just read bytes at each known 11.x offset ───────
+async function verifyMode(scannable, chunkSize) {
+  const total = scannable.length;
+  for (let i = 0; i < total; i++) {
+    if (stopFlag) break;
+    const [name, pat, ref] = scannable[i];
+    if (ref === null) { setCard(name,'skip',null); continue; }
+
+    setProgress(i / total, name + '...');
+
+    try {
+      const bytes = readChunk(ref, Math.max(pat.length, 8));
+      const match = pat.every((b, j) => bytes[j] === b);
+      setCard(name, match ? 'match' : 'miss', ref, Array.from(bytes));
+      emit(match ? 'ok' : 'wrn',
+        name + '  0x' + ref.toString(16) + '  ' +
+        Array.from(bytes.slice(0, pat.length)).map(b => b.toString(16).padStart(2,'0').toUpperCase()).join(' ') +
+        (match ? '  ✓ MATCH' : '  ✗ MISMATCH'));
+    } catch(e) {
+      setCard(name, 'miss', null);
+      emit('err', name + ' read error: ' + e.message);
+    }
+
+    await sleep(0);
+  }
+  setProgress(1, 'done');
+}
+
+// ─── Smart mode: per-gadget ±radius scan ──────────────────────────
+async function smartMode(scannable, radius, chunkSize, remaining) {
+  for (let gi = 0; gi < scannable.length; gi++) {
+    if (stopFlag) break;
+    const [name, pat, ref] = scannable[gi];
+    setProgress(gi / scannable.length, 'scanning ' + name.replace('wk_',''));
+
+    const start = Math.max(0, (ref ?? 0) - radius);
+    const end   = (ref ?? 0) + radius;
+
+    emit('dbg', name + '  scan [0x'+start.toString(16)+' - 0x'+end.toString(16)+']');
+
+    let found = false;
+    for (let off = start; off < end && !stopFlag; off += chunkSize) {
+      const sz    = Math.min(chunkSize + pat.length - 1, end - off);
+      const bytes = readChunk(off, sz);
+      const hit   = matchPattern(bytes, pat, off);
+
+      if (hit >= 0) {
+        const actualBytes = Array.from(bytes.slice(hit - off, hit - off + Math.max(pat.length, 8)));
+        const status = (ref !== null && hit === ref) ? 'match' : 'found';
+        setCard(name, status, hit, actualBytes);
+        emit('ok', name + '  → 0x' + hit.toString(16) +
+          (ref !== null ? '  Δ' + (hit > ref ? '+' : '') + '0x' + Math.abs(hit - ref).toString(16) : ''));
+        remaining.delete(name);
+        found = true;
+        break;
+      }
+
+      await sleep(0);
+    }
+
+    if (!found) setCard(name, 'miss', null);
+  }
+  setProgress(1, 'done');
+}
+
+// ─── Full mode: single pass over entire range ─────────────────────
+async function fullMode(scannable, start, length, chunkSize, remaining) {
+  const end   = start + length;
+  const total = length;
+
+  for (let off = start; off < end && !stopFlag; off += chunkSize) {
+    const sz    = Math.min(chunkSize + 16, end - off);
+    const bytes = readChunk(off, sz);
+    const done  = off - start;
+
+    setProgress(done / total, '0x'+off.toString(16) + ' — found: ' + (scannable.length - remaining.size));
+
+    for (const [name, pat, ref] of scannable) {
+      if (!remaining.has(name)) continue;
+      const hit = matchPattern(bytes, pat, off);
+      if (hit >= 0) {
+        const actualBytes = Array.from(bytes.slice(hit - off, hit - off + Math.max(pat.length, 8)));
+        const status = (ref !== null && hit === ref) ? 'match' : 'found';
+        setCard(name, status, hit, actualBytes);
+        emit('ok', name + '  → 0x' + hit.toString(16) +
+          (ref !== null ? '  Δ' + (hit > ref ? '+' : '') + '0x' + Math.abs(hit - ref).toString(16) : ''));
+        remaining.delete(name);
+        if (remaining.size === 0) { off = end; break; }
+      }
+    }
+
+    await sleep(0);
+  }
+  setProgress(1, 'done');
+}
+
+function stopScan() {
+  stopFlag = true;
+  emit('wrn', 'Scan stopped by user');
+}
+
+function setProgress(frac, info) {
+  const pct = Math.round(frac * 100);
+  document.getElementById('prog-bar').style.width = pct + '%';
+  document.getElementById('prog-pct').textContent = pct + '%';
+  document.getElementById('prog-info').textContent = info;
+}
+
+function updateSummary() {
+  const all   = Object.entries(results);
+  const found = all.filter(([,r]) => r.status==='found'||r.status==='match').length;
+  const miss  = all.filter(([,r]) => r.status==='miss').length;
+  document.getElementById('gg-summary').textContent =
+    'Results: ' + found + ' found  |  ' + miss + ' not found  |  click cards for detail';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HEX BROWSER
+// ══════════════════════════════════════════════════════════════════
+function quickRead() {
+  const off = parseInt(document.getElementById('br-off').value, 16);
+  const len = parseInt(document.getElementById('br-len').value, 10) || 32;
+  document.getElementById('br-off2').value = document.getElementById('br-off').value;
+  document.getElementById('br-len2').value = len;
+  renderHex(off, len, []);
+}
+
+function doBrowserRead() {
+  const off = parseInt(document.getElementById('br-off2').value, 16) || 0;
+  const len = parseInt(document.getElementById('br-len2').value,  10) || 64;
+  const hlRaw = document.getElementById('br-hl').value.trim();
+  const hl = hlRaw ? hlRaw.split(/\s+/).map(b => parseInt(b, 16)).filter(b => !isNaN(b)) : [];
+  renderHex(off, len, hl);
+}
+
+function renderHex(offset, len, highlight) {
+  if (!arwReady) {
+    document.getElementById('hx-dump').innerHTML =
+      '<div class="hx-empty hx-err">ARW not initialized</div>';
+    emit('err', 'Cannot read memory — ARW not ready');
+    return;
+  }
+
+  emit('dbg', 'Read 0x' + offset.toString(16) + ' len=' + len);
+  const bytes = readChunk(offset, len);
+
+  const rows = [];
+  const rw = 16;
+  for (let i = 0; i < bytes.length; i += rw) {
+    const row = Array.from(bytes.slice(i, i + rw));
+    const offHex = (offset + i).toString(16).padStart(6, '0');
+
+    let hexStr = '';
+    for (let j = 0; j < rw; j++) {
+      if (j >= row.length) { hexStr += '   '; continue; }
+      const b    = row[j];
+      const bHex = b.toString(16).toUpperCase().padStart(2, '0');
+      const isHl = highlight.length >= 1 && highlight.every((hb, k) =>
+        k < row.length - j && row[j + k] === hb) && j < row.length - highlight.length + 1
+        ? false   // complex; we'll do a pass below
+        : false;
+      hexStr += bHex + ' ';
+    }
+
+    // Highlight pass
+    if (highlight.length) {
+      let hHex = row.map(b => b.toString(16).toUpperCase().padStart(2,'0') + ' ').join('');
+      const pat = highlight.map(b => b.toString(16).toUpperCase().padStart(2,'0')).join(' ') + ' ';
+      const idx = hHex.indexOf(pat);
+      if (idx >= 0) {
+        hexStr = hHex.slice(0, idx)
+          + '<span class="hx-match">' + pat + '</span>'
+          + hHex.slice(idx + pat.length);
+      } else {
+        hexStr = hHex;
+      }
+    } else {
+      hexStr = row.map(b => b.toString(16).toUpperCase().padStart(2,'0') + ' ').join('');
+    }
+
+    const ascii = row.map(b => (b >= 0x20 && b < 0x7F) ? String.fromCharCode(b) : '.').join('');
+
+    rows.push(
+      '<div class="hx-row">' +
+        '<span class="hx-off">'+offHex+'</span>' +
+        '<span class="hx-bytes">'+hexStr+'</span>' +
+        '<span class="hx-ascii">'+escH(ascii)+'</span>' +
+      '</div>'
+    );
+  }
+
+  document.getElementById('hx-dump').innerHTML = rows.join('') || '<div class="hx-empty">nothing read</div>';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════════════════════════
+function buildExport() {
+  const fw = typeof version !== 'undefined' && version.major
+    ? version.toString() : '??.??';
+  const fwNum = typeof version !== 'undefined' ? version.minor.toString(16).padStart(2,'0') : '??';
+
+  const found = Object.values(results).filter(r => r.status==='found'||r.status==='match').length;
+  const total  = GD.length;
+
+  let out = '';
+  out += '// Generated by WebKit Gadget Finder\n';
+  out += '// Firmware: ' + fw + ' | Found: ' + found + '/' + total + '\n';
+  out += '// ' + new Date().toISOString() + '\n\n';
+
+  out += '  // ── Add inside constants_map ──\n';
+  out += '  ' + version?.major + ': {\n';
+  out += '    0x' + fwNum + ': {\n';
+
+  for (const [name,, ref, cat] of GD) {
+    const r = results[name];
+    if (!r) continue;
+
+    if (r.status === 'manual' || r.status === 'skip' || cat === 'jsc' || cat === 'import' || cat === 'plt' || cat === 'libc' || cat === 'vtable') {
+      out += '      ' + name + ': null,';
+      out += '      // ← MANUAL: 11.x ref=0x' + (ref ?? 0).toString(16) + '\n';
+    } else if (r.status === 'found' || r.status === 'match') {
+      const delta = ref !== null ? (r.offset - ref) : null;
+      const dStr  = delta !== null ? '  Δ' + (delta >= 0 ? '+' : '') + '0x' + Math.abs(delta).toString(16) : '';
+      out += '      ' + name + ': 0x' + r.offset.toString(16) + ',';
+      out += '      // ✓ ' + (r.status === 'match' ? 'SAME as 11.x' : 'found') + dStr + '\n';
+    } else {
+      out += '      ' + name + ': null,';
+      out += '      // ✗ NOT FOUND — needs manual lookup (11.x: 0x' + (ref ?? 0).toString(16) + ')\n';
+    }
+  }
+
+  out += '\n      // ── Kernel side (already filled) ──\n';
+  out += '      KPATCH: "1' + (version?.major ?? '??') + fwNum + '.bin",\n';
+  out += '      SYSENT_661:    0x110A760,\n';
+  out += '      JMP_RSI_GADGET:0x47B31,\n';
+  out += '      KL_LOCK:       0xE6C20,\n';
+  out += '      EVF_OFFSET:    0x0, // unknown for 12.50+\n';
+  out += '    },\n';
+  out += '  },\n';
+
+  document.getElementById('ex-out').textContent = out;
+  document.getElementById('ex-summary').textContent =
+    'Found ' + found + '/' + total + ' gadgets for fw ' + fw;
+}
+
+function copyExport() {
+  const t = document.getElementById('ex-out').textContent;
+  navigator.clipboard?.writeText(t).catch(() => {
+    const ta = Object.assign(document.createElement('textarea'), {value:t,style:'position:fixed;opacity:0'});
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  });
+  emit('sys', 'Export copied to clipboard');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STATUS CHIP
+// ══════════════════════════════════════════════════════════════════
+function setChip(cls, label) {
+  const el = document.getElementById('main-chip');
+  el.className = 'chip ' + cls;
+  el.textContent = label;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LIVE VALUE POLLING
+// ══════════════════════════════════════════════════════════════════
+function safePeek(expr) {
+  try { const v = eval(expr); return v !== undefined ? String(v) : null; }
+  catch { return null; }
+}
+setInterval(() => {
+  const wb = safePeek('typeof webkit_base!=="undefined"?webkit_base.toString():null');
+  const kb = safePeek('typeof kernel_base!=="undefined"?kernel_base.toString():null');
+  const fw = safePeek('typeof version!=="undefined"&&version.major?String(version):null');
+  const set = (id, v) => {
+    const el = document.getElementById(id);
+    if (v) { el.textContent = v; el.className = 'lv-val live'; }
+    else   { el.textContent = '—'; el.className = 'lv-val'; }
+  };
+  set('lv-wb', wb); set('lv-kb', kb); set('lv-fw', fw);
+}, 800);
+
+// ══════════════════════════════════════════════════════════════════
+// RESET
+// ══════════════════════════════════════════════════════════════════
+function resetAll() {
+  results = {};
+  buildCards();
+  document.getElementById('st-found').textContent  = '—';
+  document.getElementById('st-match').textContent  = '—';
+  document.getElementById('st-miss').textContent   = '—';
+  document.getElementById('prog-bar').style.width  = '0%';
+  document.getElementById('prog-wrap').style.display = 'none';
+  document.getElementById('prog-txt').style.display  = 'none';
+  document.getElementById('btn-scan').style.display  = '';
+  document.getElementById('btn-stop').style.display  = 'none';
+  document.getElementById('ex-out').textContent = '// Run scan then click Export in the top bar';
+  emit('sys', 'Reset');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+buildCards();
+emit('sys', 'WebKit Gadget Finder ready');
+emit('sys', 'UA: ' + navigator.userAgent);
+emit('dbg', 'Step 1: Init ARW (runs full exploit chain to get memory access)');
+emit('dbg', 'Step 2: Choose scan mode and click SCAN');
+emit('dbg', 'Verify = fast check of 11.x offsets only');
+emit('dbg', 'Smart  = per-gadget search ±radius from 11.x ref (recommended)');
+emit('dbg', 'Full   = brute-force entire range (slowest, most thorough)');
+</script>
+</body>
+</html>
